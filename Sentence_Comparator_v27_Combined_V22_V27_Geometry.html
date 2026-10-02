@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentence Comparator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
+<style>
+:root{
+  --primary:#4f46e5;--primary-dark:#4338ca;--primary-light:#eef2ff;
+  --bg1:#eef2ff;--bg2:#f8fafc;--card:#ffffff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;
+  --green:#15803d;--green-bg:#f0fdf4;--green-mark:#bbf7d0;--green-border:#86efac;
+  --red:#b91c1c;--red-bg:#fef2f2;--red-mark:#fecaca;--red-border:#fca5a5;
+  --amber:#92400e;--amber-bg:#fffbeb;--amber-border:#fde68a;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;--purple-mark:#ddd6fe;--purple-border:#c4b5fd;
+  --shadow:0 1px 2px rgba(15,23,42,.04),0 8px 24px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 45%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+.app{max-width:1180px;margin:auto;padding:40px 20px 72px}
+header{margin-bottom:30px}
+.eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);background:var(--primary-light);padding:5px 11px;border-radius:99px;margin-bottom:12px}
+header h1{margin:0 0 8px;font-size:30px;font-weight:800;letter-spacing:-.02em}
+header p{color:var(--muted);margin:0;line-height:1.6;font-size:15px;max-width:700px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+.card h2{font-size:15px;margin:0 0 16px;display:flex;align-items:center;gap:10px;font-weight:700}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;font-size:13px;font-weight:800;flex-shrink:0}
+.dropzone{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;border:2px dashed #c7d2fe;border-radius:14px;padding:32px 18px;text-align:center;cursor:pointer;transition:.18s ease;background:linear-gradient(180deg,#fafbff,#f4f6fd)}
+.dropzone:hover{border-color:var(--primary);background:#eef2ff}
+.dropzone.dragover{border-color:var(--primary);background:#e0e7ff;transform:scale(1.01)}
+.dropzone svg{width:34px;height:34px;color:var(--primary);opacity:.85}
+.dropzone strong{display:block;font-size:14.5px;color:var(--text)}
+.dropzone span{font-size:12.5px;color:var(--muted)}
+.visually-hidden-file{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.file-info{display:none;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:11px 13px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;font-size:13px}
+.file-info.visible{display:flex}
+.file-info .fi-left{display:flex;align-items:center;gap:10px;overflow:hidden}
+.page-selector{display:none;margin-top:12px;padding:12px 13px;background:#f8fafc;border:1px solid var(--border);border-radius:10px}
+.page-selector.visible{display:block}
+.page-selector .ps-label{display:block;font-size:12px;font-weight:700;color:var(--text);margin-bottom:7px}
+.page-selector .ps-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.page-selector select,.page-selector input{border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-size:13px;padding:7px 9px}
+.page-selector select{min-width:110px}
+.page-selector input{display:none;flex:1;min-width:180px}
+.page-selector input.visible{display:block}
+.page-selector .ps-hint{font-size:11.5px;color:var(--muted);margin:7px 0 0;line-height:1.45}
+.file-info svg{width:18px;height:18px;color:var(--primary);flex-shrink:0}
+.file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.remove{border:0;background:#eef2ff;color:var(--primary-dark);cursor:pointer;font-size:15px;width:24px;height:24px;border-radius:7px;flex-shrink:0;line-height:1}
+.remove:hover{background:#e0e7ff}
+.extract-btn{display:none;width:100%;justify-content:center;margin-top:10px;font-size:13px;padding:9px 14px}
+.extract-btn.visible{display:inline-flex}
+.extract-btn svg{width:15px;height:15px}
+.grammar-btn{width:100%;justify-content:center;margin-top:10px;font-size:13px;padding:9px 14px}
+.grammar-btn svg{width:15px;height:15px}
+.code-mode{display:none;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fafbff;font-size:12.5px;color:var(--text);cursor:pointer}
+.code-mode.visible{display:flex}
+.code-mode input{accent-color:var(--primary);margin:0}
+.code-mode small{color:var(--muted);font-size:11.5px;margin-left:auto}
+.text-output{position:relative}
+.error-arrow{position:absolute;left:1px;width:18px;height:20px;padding:0;border:0;background:transparent;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:800;line-height:20px;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.error-arrow.down{color:#06b6d4}
+.error-arrow.up{color:#f59e0b}
+.error-arrow:hover{transform:scale(1.12)}
+mark.error-current{outline:2px solid var(--primary);outline-offset:2px}
+.grammar-results{display:none;margin-top:14px}
+.grammar-results.visible{display:block}
+.grammar-summary{display:flex;align-items:center;gap:8px;padding:10px 13px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:10px;line-height:1.4}
+.grammar-summary.clean{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.grammar-summary.dirty{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.grammar-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+.grammar-item{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fafbff}
+.grammar-item .g-type{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:99px;margin-bottom:7px}
+.g-type.repeat{background:#ffedd5;color:#9a3412}
+.g-type.spelling{background:var(--red-mark);color:var(--red)}
+.g-type.cap{background:#dbeafe;color:#1d4ed8}
+.g-type.space{background:#e2e8f0;color:#475569}
+.grammar-item .g-msg{font-size:12px;color:var(--muted);margin-bottom:5px}
+.grammar-item .g-snippet{font-size:13px;line-height:1.6;color:var(--text)}
+.grammar-item .g-snippet mark{background:#fde68a;color:#78350f;padding:1px 4px;border-radius:4px;font-weight:700}
+.grammar-note{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+.mode-tabs{display:flex;gap:6px;margin-bottom:14px;background:#f1f5f9;padding:4px;border-radius:10px}
+.mode-tab{flex:1;border:0;background:transparent;padding:8px 10px;font-size:13px;font-weight:700;color:var(--muted);border-radius:7px;cursor:pointer;transition:.15s}
+.mode-tab.active{background:#fff;color:var(--primary-dark);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.mode-tab:hover:not(.active){color:var(--text)}
+.mode-panel{display:none}
+.mode-panel.active{display:block}
+.paste-area textarea{width:100%;min-height:230px;resize:vertical;border:1px solid var(--border);border-radius:12px;padding:14px;font-size:13.5px;line-height:1.6;font-family:inherit;color:var(--text);background:#fafbff;box-sizing:border-box}
+.paste-area textarea:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--primary)}
+.paste-area .hint{font-size:12px;color:var(--muted);margin:8px 2px 0}
+.actions{display:flex;align-items:center;gap:14px;margin:22px 0 6px;flex-wrap:wrap}
+.button{border:0;border-radius:10px;padding:12px 20px;font-weight:700;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:8px;transition:.15s}
+.primary{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.28)}
+.primary:hover:not(:disabled){filter:brightness(1.06)}
+.secondary{background:#fff;color:var(--text);border:1px solid var(--border)}
+.secondary:hover{background:#f8fafc}
+.button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.status{font-size:13px;color:var(--muted);min-height:20px}
+.progress{height:8px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin:4px 0 0;display:none}
+.progress.visible{display:block}
+.bar{height:100%;width:0;background:linear-gradient(90deg,var(--primary),#818cf8);transition:width .2s;border-radius:99px}
+.results{display:none;margin-top:8px}
+.results.visible{display:block}
+.results h2{font-size:17px;margin:0 0 18px;font-weight:800}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat{padding:16px;border-radius:12px;border:1px solid var(--border);background:#f8fafc;border-left-width:4px;display:flex;flex-direction:column;gap:2px}
+.stat.same{border-left-color:var(--primary)}
+.stat.mismatch{border-left-color:#7c3aed}
+.stat.added{border-left-color:#22c55e}
+.stat.removed{border-left-color:#ef4444}
+.stat b{display:block;font-size:26px;font-weight:800}
+.stat span{font-size:12.5px;color:var(--muted);font-weight:600}
+.legend{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--muted);margin:0 0 14px;flex-wrap:wrap}
+.legend mark{padding:2px 7px;border-radius:5px;font-weight:600}
+.added{background:var(--green-mark);color:var(--green)}
+.removed{background:var(--red-mark);color:var(--red);text-decoration:line-through}
+.mismatch{background:var(--purple-mark);color:var(--purple);font-weight:700}
+.issues{margin-bottom:22px}
+.issue-group{margin-bottom:14px;padding:15px 17px;border:1px solid var(--border);border-radius:12px;background:#fafbff}
+.issue-group:last-child{margin-bottom:0}
+.issue-group h4{margin:0 0 10px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;color:var(--text)}
+.issue-group h4 .count{background:var(--primary-light);color:var(--primary-dark);border-radius:99px;padding:1px 9px;font-size:12px}
+.mismatch-list{list-style:none;margin:0;padding:0}
+.mismatch-row{display:flex;align-items:center;gap:9px;font-size:13.5px;padding:7px 2px;border-bottom:1px dashed var(--border)}
+.mismatch-row:last-child{border-bottom:0}
+.mismatch-row .from{color:var(--red);text-decoration:line-through;font-weight:600}
+.mismatch-row .to{color:var(--green);font-weight:700}
+.mismatch-row .arrow{color:var(--muted)}
+.chip-list{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:3px 10px;border-radius:99px;font-size:12.5px;font-weight:700}
+.chip.pdf{background:var(--red-mark);color:var(--red)}
+.chip.email{background:var(--green-mark);color:var(--green)}
+.issue-empty{font-size:13px;color:var(--muted);font-style:italic}
+.compare{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pane{min-width:0}
+.pane+.pane{border-left:1px solid var(--border)}
+.pane h3{font-size:13px;margin:0;padding:12px 16px;background:#f8fafc;border-bottom:1px solid var(--border);font-weight:700;display:flex;align-items:center;gap:8px}
+.pane.pdf h3{color:var(--red)}
+.pane.email h3{color:var(--green)}
+.text-output{padding:18px;white-space:pre-wrap;word-break:break-word;line-height:1.7;font-size:14px;min-height:230px;max-height:560px;overflow:auto}
+.notice{display:none;margin:16px 0;padding:13px 15px;border-radius:10px;background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-size:13px;line-height:1.5}
+.notice.visible{display:flex;gap:9px;align-items:flex-start}
+.notice svg{width:17px;height:17px;flex-shrink:0;margin-top:1px}
+.empty{color:var(--muted);font-size:14px}
+.footer-note{font-size:12px;color:var(--muted);margin-top:16px}
+.app-footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);text-align:center;color:var(--muted);font-size:12.5px;line-height:1.7}
+.app-footer .dev-label{font-weight:700;color:var(--text);text-transform:uppercase;font-size:11px;letter-spacing:.05em;margin-bottom:4px}
+.app-footer .dev-name{font-weight:700;color:var(--primary-dark)}
+.app-footer a{color:var(--primary);text-decoration:none;font-weight:600}
+.app-footer a:hover{text-decoration:underline}
+@media(max-width:760px){
+  .grid,.compare{grid-template-columns:1fr}
+  .pane+.pane{border-left:0;border-top:1px solid var(--border)}
+  .summary{grid-template-columns:1fr}
+  .app{padding:28px 14px}
+}
+</style>
+</head>
+<body>
+<main class="app">
+<header>
+  <span class="eyebrow">Local &amp; private — runs in your browser</span>
+  <h1>Sentence Comparator</h1>
+  <p>Upload a PDF or Word (.docx) document and an email file — or paste text directly instead — to compare them side by side. Scanned or non-editable PDFs are automatically processed with on-device OCR — nothing is uploaded to a server.</p>
+</header>
+
+<section class="grid">
+  <div class="card">
+    <h2><span class="badge">1</span> PDF / Word</h2>
+    <div class="mode-tabs">
+      <button type="button" class="mode-tab active" data-side="pdf" data-mode="file">Upload file</button>
+      <button type="button" class="mode-tab" data-side="pdf" data-mode="text">Paste text</button>
+    </div>
+    <div class="mode-panel active" id="pdfFileMode">
+      <label class="dropzone" id="pdfZone" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <strong>Drop a PDF or Word file here or click to browse</strong>
+        <span>Text-based/scanned PDFs and .docx Word files supported</span>
+        <input class="visually-hidden-file" id="pdfInput" type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      </label>
+      <div class="file-info" id="pdfInfo">
+        <span class="fi-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="file-name" id="pdfName"></span>
+        </span>
+        <button class="remove" id="pdfRemove" type="button" aria-label="Remove PDF">×</button>
+      </div>
+      <div class="page-selector" id="pdfPageSelector">
+        <span class="ps-label">Source pages to compare</span>
+        <div class="ps-controls">
+          <select id="pdfPageSelect" aria-label="Source pages">
+            <option value="all">All</option>
+          </select>
+          <input id="pdfCustomPages" type="text" placeholder="e.g. 1-2, 1-5, 5-7" aria-label="Custom source pages">
+        </div>
+        <p class="ps-hint">Choose a single page or Custom for a page range. Examples: 1-2, 1-5, 5-7. Multiple ranges such as 1-2,5-7 are also supported.</p>
+      </div>
+      <button class="button secondary extract-btn" id="pdfExtractBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5a1 1 0 011-1h4M4 17v2a1 1 0 001 1h4M20 7V5a1 1 0 00-1-1h-4M20 17v2a1 1 0 01-1 1h-4"/></svg>
+        Extract text to edit
+      </button>
+    </div>
+    <div class="mode-panel paste-area" id="pdfTextMode">
+      <textarea id="pdfManualText" placeholder="Paste or type the PDF/Word text here…"></textarea>
+      <p class="hint">OCR is skipped for pasted text — it's compared exactly as typed. Tip: upload a file first, then click "Extract text to edit" to pull its text in here for manual corrections.</p>
+    </div>
+    <button class="button secondary grammar-btn" id="pdfGrammarBtn" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+      Check grammar
+    </button>
+    <div class="grammar-results" id="pdfGrammarResults"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="badge">2</span> Email</h2>
+    <div class="mode-tabs">
+      <button type="button" class="mode-tab active" data-side="email" data-mode="file">Upload file</button>
+      <button type="button" class="mode-tab" data-side="email" data-mode="text">Paste text</button>
+    </div>
+    <div class="mode-panel active" id="emailFileMode">
+      <label class="dropzone" id="emailZone" tabindex="0">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <strong>Drop an email here or click to browse</strong>
+        <span>Supports .eml, .msg, .html, .htm, and .txt</span>
+        <input class="visually-hidden-file" id="emailInput" type="file" accept=".eml,.msg,.html,.htm,.txt,text/plain,text/html,message/rfc822,application/vnd.ms-outlook">
+      </label>
+      <div class="file-info" id="emailInfo">
+        <span class="fi-left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v16H4z"/><path d="M4 6l8 7 8-7"/></svg>
+          <span class="file-name" id="emailName"></span>
+        </span>
+        <button class="remove" id="emailRemove" type="button" aria-label="Remove email">×</button>
+      </div>
+      <label class="code-mode" id="htmlCodeMode">
+        <input type="checkbox" id="htmlCodeCheckbox">
+        <span>Compare HTML code</span>
+        <small>Use source code instead of rendered text</small>
+      </label>
+      <button class="button secondary extract-btn" id="emailExtractBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5a1 1 0 011-1h4M4 17v2a1 1 0 001 1h4M20 7V5a1 1 0 00-1-1h-4M20 17v2a1 1 0 01-1 1h-4"/></svg>
+        Extract text to edit
+      </button>
+    </div>
+    <div class="mode-panel paste-area" id="emailTextMode">
+      <textarea id="emailManualText" placeholder="Paste or type the email text here…"></textarea>
+      <p class="hint">Paste the email body directly — no file needed. Tip: upload a file first, then click "Extract text to edit" to pull its text in here for manual corrections.</p>
+    </div>
+    <button class="button secondary grammar-btn" id="emailGrammarBtn" type="button" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>
+      Check grammar
+    </button>
+    <div class="grammar-results" id="emailGrammarResults"></div>
+  </div>
+</section>
+
+<div class="actions">
+  <button class="button primary" id="compareBtn" disabled>Compare text</button>
+  <button class="button secondary" id="clearBtn">Clear</button>
+  <span class="status" id="status" role="status"></span>
+</div>
+<div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+<div class="notice" id="notice"></div>
+
+<section class="card results" id="results">
+  <h2>Comparison results</h2>
+  <div class="summary">
+    <div class="stat same"><b id="sameCount">0</b><span>Matching words</span></div>
+    <div class="stat mismatch"><b id="mismatchCount">0</b><span>Spelling / wording mismatches</span></div>
+    <div class="stat removed"><b id="removedCount">0</b><span>Extra in PDF (missing from email)</span></div>
+    <div class="stat added"><b id="addedCount">0</b><span>Extra in email (missing from PDF)</span></div>
+  </div>
+  <p class="legend">
+    <span><mark class="removed">PDF-only word</mark> — appears in the PDF pane only, missing from the email</span>
+    <span><mark class="added">Email-only word</mark> — appears in the email pane only, missing from the PDF</span>
+    <span><mark class="mismatch">Mismatch</mark> — hover to see the corresponding word in the other document</span>
+    <span>Unmarked text matches exactly</span>
+  </p>
+
+  <div class="compare">
+    <div class="pane pdf"><h3>PDF text</h3><div class="text-output" id="pdfOutput"></div></div>
+    <div class="pane email"><h3>Email text</h3><div class="text-output" id="emailOutput"></div></div>
+  </div>
+  <p class="footer-note">Colors are highlighted directly in the PDF and email text above — red/green marks show words unique to one document, purple marks show likely spelling or wording mismatches (hover a purple word to see its counterpart). OCR is performed locally in your browser and results may vary with image quality, handwriting, unusual fonts, or complex layouts.</p>
+</section>
+
+<footer class="app-footer">
+  <div class="dev-label">Developed by</div>
+  <div class="dev-name">Rohit Bhat</div>
+  <div><a href="mailto:bhatrohit001@gmail.com">bhatrohit001@gmail.com</a></div>
+</footer>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+let pdfFile=null,emailFile=null;
+let errorNavigationIndex=-1;
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// --- Drop zone setup -------------------------------------------------
+// Each zone is a <label> whose associated control is the nested <input type=file>
+// (implicit label/control association). We deliberately do NOT also set an
+// explicit for="..." attribute — having both implicit nesting AND an explicit
+// `for` pointing at the same control causes some browsers to fire the click
+// twice, which can reset the file selection right after picking a file.
+function setupZone(zone,input,setter){
+  zone.setAttribute('role','button');
+  zone.addEventListener('keydown',e=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}
+  });
+  ['dragenter','dragover'].forEach(type=>zone.addEventListener(type,e=>{
+    e.preventDefault();e.stopPropagation();zone.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach(type=>zone.addEventListener(type,e=>{
+    e.preventDefault();e.stopPropagation();zone.classList.remove('dragover');
+  }));
+  zone.addEventListener('drop',e=>{
+    const file=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(file){
+      setter(file);
+      try{const transfer=new DataTransfer();transfer.items.add(file);input.files=transfer.files;}catch(_){}
+    }
+  });
+  input.addEventListener('change',()=>{
+    if(input.files&&input.files[0])setter(input.files[0]);
+  });
+}
+
+setupZone($('pdfZone'),$('pdfInput'),f=>{pdfFile=f;showPdf(f);});
+setupZone($('emailZone'),$('emailInput'),f=>{emailFile=f;showEmail(f);});
+
+$('pdfRemove').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();pdfFile=null;$('pdfInput').value='';showPdf(null);});
+$('emailRemove').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();emailFile=null;$('emailInput').value='';showEmail(null);});
+
+let pdfPageCount=0;
+
+function resetPdfPageSelector(){
+  pdfPageCount=0;
+  const wrap=$('pdfPageSelector'),select=$('pdfPageSelect'),custom=$('pdfCustomPages');
+  select.innerHTML='<option value="all">All</option>';
+  select.value='all';
+  custom.value='';
+  custom.classList.remove('visible');
+  wrap.classList.remove('visible');
+}
+
+async function openPdfDocument(data){
+  try{
+    return await pdfjsLib.getDocument({
+      data,
+      stopAtErrors:false,
+      verbosity:0
+    }).promise;
+  }catch(firstErr){
+    // Retry with a fresh byte array. This gives pdf.js a clean input buffer
+    // and allows its built-in recovery handling to run again.
+    try{
+      const retryData=new Uint8Array(data);
+      return await pdfjsLib.getDocument({
+        data:retryData,
+        stopAtErrors:false,
+        verbosity:0
+      }).promise;
+    }catch(recoveryErr){
+      const msg=(recoveryErr&&recoveryErr.message)||((firstErr&&firstErr.message)||'Unknown PDF error');
+      if(/password|encrypted|passwordrequired/i.test(msg)){
+        throw new Error('This PDF is password-protected or encrypted. Please provide an unlocked copy.');
+      }
+      if(/invalid pdf|invalid xref|xref|structure|corrupt|malformed/i.test(msg)){
+        throw new Error('This PDF has an invalid or damaged internal structure. The PDF parser could not recover it.');
+      }
+      throw recoveryErr||firstErr;
+    }
+  }
+}
+
+async function loadPdfPageSelector(file){
+  const wrap=$('pdfPageSelector'),select=$('pdfPageSelect'),custom=$('pdfCustomPages');
+  resetPdfPageSelector();
+  if(!file||!file.name.toLowerCase().endsWith('.pdf'))return;
+  wrap.classList.add('visible');
+  select.disabled=true;
+  select.innerHTML='<option value="all">Loading pages…</option>';
+  try{
+    const data=new Uint8Array(await file.arrayBuffer());
+    const pdf=await openPdfDocument(data);
+    pdfPageCount=pdf.numPages;
+    select.innerHTML='<option value="all">All ('+pdf.numPages+' pages)</option>';
+    for(let i=1;i<=pdf.numPages;i++){
+      const opt=document.createElement('option');
+      opt.value=String(i);opt.textContent=String(i);
+      select.appendChild(opt);
+    }
+    const customOpt=document.createElement('option');
+    customOpt.value='custom';customOpt.textContent='Custom';
+    select.appendChild(customOpt);
+    select.disabled=false;
+  }catch(err){
+    select.disabled=false;
+    select.innerHTML='<option value="all">All</option>';
+    $('notice').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 01-1.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span>'+(err.message||'Could not read the PDF page count.')+'</span>';
+    $('notice').classList.add('visible');
+  }
+}
+
+function getSelectedPdfPages(){
+  if(!pdfFile||!pdfFile.name.toLowerCase().endsWith('.pdf'))return null;
+  const value=$('pdfPageSelect').value;
+  if(value==='all')return null;
+  if(value!=='custom')return [Number(value)];
+
+  const raw=$('pdfCustomPages').value.trim();
+  if(!raw)throw new Error('Enter a page number or range, for example 1-2 or 5-7.');
+  if(!pdfPageCount)throw new Error('PDF page count is still loading. Please try again in a moment.');
+
+  const pages=new Set();
+  for(const part of raw.split(',')){
+    const item=part.trim();
+    if(!item)continue;
+    if(/^\d+$/.test(item)){
+      const n=Number(item);
+      if(n<1||n>pdfPageCount)throw new Error('Page '+n+' is outside the PDF range 1-'+pdfPageCount+'.');
+      pages.add(n);
+    }else{
+      const m=/^(\d+)\s*-\s*(\d+)$/.exec(item);
+      if(!m)throw new Error('Invalid page range "'+item+'". Use formats such as 1-2 or 5-7.');
+      const start=Number(m[1]),end=Number(m[2]);
+      if(start<1||end>pdfPageCount||start>end)throw new Error('Page range "'+item+'" is outside the PDF range 1-'+pdfPageCount+'.');
+      for(let n=start;n<=end;n++)pages.add(n);
+    }
+  }
+  const result=[...pages].sort((a,b)=>a-b);
+  if(!result.length)throw new Error('Enter at least one source page.');
+  return result;
+}
+
+function showPdf(f){
+  $('pdfInfo').classList.toggle('visible',!!f);
+  $('pdfName').textContent=f?f.name:'';
+  $('pdfExtractBtn').classList.toggle('visible',!!f);
+  if(f)loadPdfPageSelector(f);else resetPdfPageSelector();
+  updateCompareEnabled();
+}
+function showEmail(f){
+  $('emailInfo').classList.toggle('visible',!!f);
+  $('emailName').textContent=f?f.name:'';
+  $('emailExtractBtn').classList.toggle('visible',!!f);
+  const isHtml=!!f&&/\.html?$/i.test(f.name);
+  $('htmlCodeMode').classList.toggle('visible',isHtml);
+  if(!isHtml)$('htmlCodeCheckbox').checked=false;
+  updateCompareEnabled();
+}
+
+let pdfMode='file',emailMode='file';
+function updateCompareEnabled(){
+  let pdfReady=pdfMode==='file'?!!pdfFile:$('pdfManualText').value.trim().length>0;
+  let emailReady=emailMode==='file'?!!emailFile:$('emailManualText').value.trim().length>0;
+  $('compareBtn').disabled=!(pdfReady&&emailReady);
+  $('pdfGrammarBtn').disabled=!pdfReady;
+  $('emailGrammarBtn').disabled=!emailReady;
+}
+document.querySelectorAll('.mode-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    switchModeTab(btn.dataset.side,btn.dataset.mode);
+  });
+});
+$('pdfManualText').addEventListener('input',updateCompareEnabled);
+$('emailManualText').addEventListener('input',updateCompareEnabled);
+$('pdfPageSelect').addEventListener('change',()=>{
+  $('pdfCustomPages').classList.toggle('visible',$('pdfPageSelect').value==='custom');
+});
+$('pdfCustomPages').addEventListener('input',()=>{});
+$('htmlCodeCheckbox').addEventListener('change',()=>{
+  if(emailFile&&/\.html?$/i.test(emailFile.name)){
+    $('status').textContent=$('htmlCodeCheckbox').checked?'HTML source-code comparison enabled.':'Rendered HTML text comparison enabled.';
+  }
+  updateCompareEnabled();
+});
+
+// --- Extract text to edit ---------------------------------------------
+// Pulls the text out of the uploaded file and drops it into that side's
+// "Paste text" box, then switches to that tab, so the user can manually
+// tweak/correct the extracted text before running the comparison.
+function switchModeTab(side,mode){
+  document.querySelectorAll('.mode-tab[data-side="'+side+'"]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  $(side+'FileMode').classList.toggle('active',mode==='file');
+  $(side+'TextMode').classList.toggle('active',mode==='text');
+  if(side==='pdf')pdfMode=mode;else emailMode=mode;
+  updateCompareEnabled();
+}
+async function extractToEdit(side){
+  const btn=$(side+'ExtractBtn');
+  const file=side==='pdf'?pdfFile:emailFile;
+  if(!file)return;
+  btn.disabled=true;$('notice').classList.remove('visible');
+  try{
+    let text;
+    if(side==='pdf'){
+      const isDocx=file.name.toLowerCase().endsWith('.docx');
+      setProgress(5,'Extracting '+(isDocx?'Word document':'PDF')+' text…');
+      const result=await pdfText(file,getSelectedPdfPages());
+      text=result.text;
+      if(result.ocrPages){
+        $('notice').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span>OCR was used on '+result.ocrPages+' of '+result.selectedPages.length+' selected PDF page(s) to extract this text — please double-check it for accuracy.</span>';
+        $('notice').classList.add('visible');
+      }
+    }else{
+      setProgress(5,'Extracting email text…');
+      text=await emailText(file);
+    }
+    $(side+'ManualText').value=text.trim();
+    switchModeTab(side,'text');
+    $('status').textContent='Text extracted from the '+(side==='pdf'?'document':'email')+' — edit it below, then compare.';
+  }catch(err){
+    $('notice').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span>'+(err.message||'Could not extract text from this file.')+'</span>';
+    $('notice').classList.add('visible');
+  }finally{
+    btn.disabled=false;$('progress').classList.remove('visible');$('bar').style.width='0';
+  }
+}
+$('pdfExtractBtn').addEventListener('click',()=>extractToEdit('pdf'));
+$('emailExtractBtn').addEventListener('click',()=>extractToEdit('email'));
+
+// --- Grammar / typo / repeated-word check -----------------------------
+// This runs entirely locally (no server, no external grammar API — consistent
+// with the rest of the tool). It is a lightweight HEURISTIC checker, not a
+// full contextual grammar engine: it catches the mechanical issues that are
+// most likely to slip through an exact word-for-word comparison, such as an
+// accidental repeated word in the source itself (e.g. "I want want to know"),
+// a set of ~90 commonly-mistyped English words, missing capitalization after
+// a sentence end, and extra/misplaced spacing. It intentionally does NOT try
+// to evaluate tone, subject-verb agreement, or full sentence grammar, since
+// that would require a large dictionary/model that can't run reliably fully
+// offline in-browser.
+const COMMON_TYPOS={
+  "recieve":"receive","recieved":"received","recieving":"receiving","teh":"the","adress":"address",
+  "seperate":"separate","seperated":"separated","seperately":"separately","occured":"occurred",
+  "occurence":"occurrence","untill":"until","wich":"which","thier":"their","becuase":"because",
+  "definately":"definitely","goverment":"government","arguement":"argument","begining":"beginning",
+  "calender":"calendar","cemetary":"cemetery","collegue":"colleague","colleage":"colleague",
+  "comming":"coming","commited":"committed","concious":"conscious","curiousity":"curiosity",
+  "dilemna":"dilemma","dissapear":"disappear","embarass":"embarrass","enviroment":"environment",
+  "existance":"existence","familar":"familiar","finaly":"finally","foriegn":"foreign","fourty":"forty",
+  "freind":"friend","greatful":"grateful","harrass":"harass","independant":"independent",
+  "knowlege":"knowledge","liason":"liaison","lisence":"license","maintainance":"maintenance",
+  "mispell":"misspell","neccessary":"necessary","noticable":"noticeable","occassion":"occasion",
+  "paralel":"parallel","posession":"possession","priviledge":"privilege","publically":"publicly",
+  "reccommend":"recommend","refered":"referred","referal":"referral","relevent":"relevant",
+  "religous":"religious","rythm":"rhythm","sucessful":"successful","supercede":"supersede",
+  "tommorow":"tomorrow","truely":"truly","unfortunatly":"unfortunately","wierd":"weird",
+  "acheive":"achieve","accomodate":"accommodate","persistant":"persistent","reciept":"receipt",
+  "suprise":"surprise","alot":"a lot","aswell":"as well","alright":"all right","apparant":"apparent",
+  "arguement":"argument","assesment":"assessment","begining":"beginning","beleive":"believe",
+  "buisness":"business","catagory":"category","completly":"completely","consistant":"consistent",
+  "definate":"definite","enviroment":"environment","excelent":"excellent","exsistence":"existence",
+  "explaination":"explanation","goverment":"government","immediatly":"immediately","intrest":"interest",
+  "inital":"initial","occassionally":"occasionally","oppurtunity":"opportunity","paticular":"particular",
+  "posible":"possible","prefered":"preferred","preform":"perform","preminum":"premium",
+  "priorty":"priority","proceedure":"procedure","profesional":"professional","quanity":"quantity",
+  "questionaire":"questionnaire","recieved":"received","requirment":"requirement","responsability":"responsibility",
+  "seperation":"separation","similiar":"similar","succesful":"successful","suprisingly":"surprisingly",
+  "suggest ":"suggest ","transfered":"transferred","upto":"up to","wheather":"whether"
+};
+function findRepeatedWords(text){
+  const issues=[],re=/\b([A-Za-z][A-Za-z'-]*)([ \t]+)(\1)\b/gi;
+  let m;
+  while((m=re.exec(text))){
+    issues.push({type:'repeat',label:'Repeated word',index:m.index,length:m[0].length,
+      message:'The word "'+m[1]+'" appears twice in a row — likely accidental.'});
+  }
+  return issues;
+}
+function findTypos(text){
+  const issues=[];
+  Object.keys(COMMON_TYPOS).forEach(wrong=>{
+    const w=wrong.trim();if(!w)return;
+    const re=new RegExp('\\b'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','gi');
+    let m;
+    while((m=re.exec(text))){
+      issues.push({type:'spelling',label:'Possible spelling mistake',index:m.index,length:m[0].length,
+        message:'"'+m[0]+'" may be misspelled — did you mean "'+COMMON_TYPOS[wrong]+'"?'});
+    }
+  });
+  return issues;
+}
+function findSpacingIssues(text){
+  const issues=[];
+  let re=/ {2,}/g,m;
+  while((m=re.exec(text)))issues.push({type:'space',label:'Extra spacing',index:m.index,length:m[0].length,message:'Multiple consecutive spaces found.'});
+  re=/ +([,.!?;:])/g;
+  while((m=re.exec(text)))issues.push({type:'space',label:'Space before punctuation',index:m.index,length:m[0].length,message:'Remove the space before "'+m[1]+'".'});
+  return issues;
+}
+function findCapitalizationIssues(text){
+  const issues=[],re=/[.!?]\s+([a-z])/g,abbrevBefore=/\b(e\.g|i\.e|Mr|Mrs|Ms|Dr|Jr|Sr|vs|etc|U\.S|U\.K)\.$/i;
+  let m;
+  while((m=re.exec(text))){
+    const before=text.slice(Math.max(0,m.index-6),m.index+1);
+    if(abbrevBefore.test(before))continue;
+    const capIdx=m.index+m[0].lastIndexOf(m[1]);
+    issues.push({type:'cap',label:'Possible missing capitalization',index:capIdx,length:1,message:'Sentence may need to start with a capital letter.'});
+  }
+  return issues;
+}
+function checkGrammarText(text){
+  if(!text||!text.trim())return [];
+  let issues=[...findRepeatedWords(text),...findTypos(text),...findCapitalizationIssues(text),...findSpacingIssues(text)];
+  issues.sort((a,b)=>a.index-b.index);
+  return issues.map(iss=>{
+    const start=Math.max(0,iss.index-30),end=Math.min(text.length,iss.index+iss.length+30);
+    const before=text.slice(start,iss.index),match=text.slice(iss.index,iss.index+iss.length),after=text.slice(iss.index+iss.length,end);
+    const snippet=(start>0?'…':'')+esc(before)+'<mark>'+esc(match)+'</mark>'+esc(after)+(end<text.length?'…':'');
+    return {...iss,snippet};
+  });
+}
+function renderGrammarResults(side,issues){
+  const el=$(side+'GrammarResults'),label=side==='pdf'?'PDF':'email';
+  const note='<p class="grammar-note">Lightweight local heuristic check — repeated words, ~90 common misspellings, spacing, and capitalization. It runs entirely in your browser (no external grammar API) and is not a full contextual grammar engine, so always review important text yourself.</p>';
+  if(!issues.length){
+    el.innerHTML='<div class="grammar-summary clean">✓ No repeated words, common typos, or spacing/capitalization issues detected in the '+label+' text.</div>'+note;
+    el.classList.add('visible');return;
+  }
+  const counts={repeat:0,spelling:0,cap:0,space:0};
+  issues.forEach(i=>counts[i.type]++);
+  let html='<div class="grammar-summary dirty">⚠ '+issues.length+' potential issue'+(issues.length>1?'s':'')+' found in the '+label+' text — '+counts.repeat+' repeated word(s), '+counts.spelling+' possible spelling mistake(s), '+counts.cap+' capitalization, '+counts.space+' spacing</div><ul class="grammar-list">';
+  issues.forEach(iss=>{
+    html+='<li class="grammar-item"><span class="g-type '+iss.type+'">'+iss.label+'</span><div class="g-msg">'+esc(iss.message)+'</div><div class="g-snippet">'+iss.snippet+'</div></li>';
+  });
+  html+='</ul>'+note;
+  el.innerHTML=html;el.classList.add('visible');
+}
+async function runGrammarCheck(side){
+  const btn=$(side+'GrammarBtn'),originalHTML=btn.innerHTML;
+  btn.disabled=true;btn.textContent='Checking…';
+  $('status').textContent='Running grammar check on the '+(side==='pdf'?'PDF':'email')+' text…';
+  try{
+    let text;
+    const mode=side==='pdf'?pdfMode:emailMode;
+    if(mode==='text'){
+      text=$(side+'ManualText').value;
+    }else{
+      const file=side==='pdf'?pdfFile:emailFile;
+      if(!file)throw new Error('Upload a file or paste text first.');
+      setProgress(10,'Extracting text to check…');
+      if(side==='pdf'){const r=await pdfText(file,getSelectedPdfPages());text=r.text;}
+      else{text=await emailText(file);}
+    }
+    const issues=checkGrammarText(text);
+    renderGrammarResults(side,issues);
+    $('status').textContent='Grammar check complete for the '+(side==='pdf'?'PDF':'email')+'.';
+  }catch(err){
+    $(side+'GrammarResults').innerHTML='<div class="grammar-summary dirty">⚠ '+(err.message||'Could not run grammar check.')+'</div>';
+    $(side+'GrammarResults').classList.add('visible');
+    $('status').textContent='Grammar check failed.';
+  }finally{
+    btn.disabled=false;btn.innerHTML=originalHTML;
+    $('progress').classList.remove('visible');$('bar').style.width='0';
+    updateCompareEnabled();
+  }
+}
+$('pdfGrammarBtn').addEventListener('click',()=>runGrammarCheck('pdf'));
+$('emailGrammarBtn').addEventListener('click',()=>runGrammarCheck('email'));
+
+$('clearBtn').onclick=()=>{
+  pdfFile=emailFile=null;$('pdfInput').value='';$('emailInput').value='';
+  $('pdfManualText').value='';$('emailManualText').value='';$('htmlCodeCheckbox').checked=false;
+  document.querySelectorAll('.mode-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode==='file'));
+  $('pdfFileMode').classList.add('active');$('pdfTextMode').classList.remove('active');
+  $('emailFileMode').classList.add('active');$('emailTextMode').classList.remove('active');
+  pdfMode='file';emailMode='file';
+  showPdf(null);showEmail(null);
+  $('pdfGrammarResults').innerHTML='';$('pdfGrammarResults').classList.remove('visible');
+  $('emailGrammarResults').innerHTML='';$('emailGrammarResults').classList.remove('visible');
+  $('results').classList.remove('visible');clearErrorArrows();$('notice').classList.remove('visible');
+  $('status').textContent='';$('progress').classList.remove('visible');$('bar').style.width='0';
+};
+
+function setProgress(n,msg){$('progress').classList.add('visible');$('bar').style.width=n+'%';$('status').textContent=msg;}
+
+// --- Minimal in-browser .msg (Outlook / OLE Compound File) parser ----
+// No external library or CDN dependency: we read the Compound File Binary
+// (CFB) container ourselves and pull out the standard MAPI properties for
+// subject / plain-text body / HTML body. This avoids relying on any
+// third-party script loading correctly.
+function readCFB(buf){
+  const dv=new DataView(buf);
+  if(dv.getUint32(0,false)!==0xD0CF11E0||dv.getUint32(4,false)!==0xA1B11AE1){
+    throw new Error('This does not look like a valid .msg (OLE) file.');
+  }
+  const sectorShift=dv.getUint16(30,true),sectorSize=1<<sectorShift;
+  const miniSectorShift=dv.getUint16(32,true),miniSectorSize=1<<miniSectorShift;
+  const firstDirSector=dv.getUint32(48,true);
+  const miniStreamCutoff=dv.getUint32(56,true);
+  const firstMiniFATSector=dv.getUint32(60,true);
+  const numMiniFATSectors=dv.getUint32(64,true);
+  const firstDIFATSector=dv.getUint32(68,true);
+  const numDIFATSectors=dv.getUint32(72,true);
+  const FREESECT=0xFFFFFFFF,ENDOFCHAIN=0xFFFFFFFE;
+
+  let difat=[];
+  for(let i=0;i<109;i++){let v=dv.getUint32(76+i*4,true);if(v!==FREESECT)difat.push(v);}
+  let ds=firstDIFATSector;
+  for(let i=0;i<numDIFATSectors&&ds!==ENDOFCHAIN&&ds!==FREESECT;i++){
+    let offset=512+ds*sectorSize,perSector=sectorSize/4-1;
+    for(let j=0;j<perSector;j++){let v=dv.getUint32(offset+j*4,true);if(v!==FREESECT)difat.push(v);}
+    ds=dv.getUint32(offset+perSector*4,true);
+  }
+  function sectorOffset(sec){return 512+sec*sectorSize;}
+  let fat=new Uint32Array(difat.length*(sectorSize/4)),fi=0;
+  for(const sec of difat){let offset=sectorOffset(sec);for(let j=0;j<sectorSize/4;j++)fat[fi++]=dv.getUint32(offset+j*4,true);}
+  function getChain(start){let chain=[],sec=start,guard=0;while(sec!==ENDOFCHAIN&&sec!==FREESECT&&sec!==undefined&&guard<2000000){chain.push(sec);sec=fat[sec];guard++;}return chain;}
+  function readSectors(chain,size){let out=new Uint8Array(size),pos=0;for(const sec of chain){let offset=sectorOffset(sec),take=Math.min(sectorSize,size-pos);out.set(new Uint8Array(buf,offset,take),pos);pos+=take;if(pos>=size)break;}return out;}
+
+  let dirChain=getChain(firstDirSector);
+  let dirBytes=readSectors(dirChain,dirChain.length*sectorSize);
+  let ddv=new DataView(dirBytes.buffer);
+  let numEntries=Math.floor(dirBytes.length/128),entries=[];
+  for(let i=0;i<numEntries;i++){
+    let base=i*128,nameLen=ddv.getUint16(base+64,true),chars=[];
+    for(let c=0;c<(nameLen/2-1)&&c<32;c++)chars.push(String.fromCharCode(ddv.getUint16(base+c*2,true)));
+    entries.push({
+      name:chars.join(''),type:dirBytes[base+66],
+      left:ddv.getUint32(base+68,true),right:ddv.getUint32(base+72,true),child:ddv.getUint32(base+76,true),
+      startSector:ddv.getUint32(base+116,true),
+      size:ddv.getUint32(base+124,true)*4294967296+ddv.getUint32(base+120,true)
+    });
+  }
+
+  let miniFat=[];
+  if(numMiniFATSectors>0){
+    let chain=getChain(firstMiniFATSector),bytes=readSectors(chain,chain.length*sectorSize),mdv=new DataView(bytes.buffer);
+    for(let i=0;i<bytes.length/4;i++)miniFat.push(mdv.getUint32(i*4,true));
+  }
+  let root=entries.find(e=>e.type===5)||entries[0];
+  let rootChain=getChain(root.startSector);
+  let miniStreamData=readSectors(rootChain,root.size);
+  function readMiniChain(start){let chain=[],sec=start,guard=0;while(sec!==ENDOFCHAIN&&sec!==0xFFFFFFFF&&guard<2000000){chain.push(sec);sec=miniFat[sec];guard++;}return chain;}
+  function readStreamData(entry){
+    if(!entry.size)return new Uint8Array(0);
+    if(entry.size<miniStreamCutoff){
+      let chain=readMiniChain(entry.startSector),out=new Uint8Array(entry.size),pos=0;
+      for(const sec of chain){let offset=sec*miniSectorSize,take=Math.min(miniSectorSize,entry.size-pos);out.set(miniStreamData.subarray(offset,offset+take),pos);pos+=take;if(pos>=entry.size)break;}
+      return out;
+    }
+    return readSectors(getChain(entry.startSector),entry.size);
+  }
+  function collectChildren(childIdx){
+    let result=[];
+    (function walk(idx){
+      if(idx===undefined||idx===0xFFFFFFFF||idx<0||idx>=entries.length)return;
+      let e=entries[idx];walk(e.left);result.push(e);walk(e.right);
+    })(childIdx);
+    return result;
+  }
+  return {topLevel:collectChildren(root.child),readStreamData};
+}
+
+function decodeUTF16LE(bytes){return new TextDecoder('utf-16le').decode(bytes).replace(/\u0000+$/,'');}
+function decodeANSI(bytes){return new TextDecoder('windows-1252').decode(bytes).replace(/\u0000+$/,'');}
+
+function parseMsgBuffer(buf){
+  let cfb=readCFB(buf),props={};
+  for(const e of cfb.topLevel){
+    let m=/^__substg1\.0_([0-9A-F]{4})([0-9A-F]{4})$/i.exec(e.name);
+    if(!m)continue;
+    let tag=m[1].toUpperCase(),type=m[2].toUpperCase();
+    if(!props[tag])props[tag]={};
+    props[tag][type]=cfb.readStreamData(e);
+  }
+  function getString(tagHex){
+    let p=props[tagHex];if(!p)return null;
+    if(p['001F'])return decodeUTF16LE(p['001F']);
+    if(p['001E'])return decodeANSI(p['001E']);
+    return null;
+  }
+  let subject=getString('0037'),body=getString('1000'),html=null;
+  let hp=props['1013'];
+  if(hp){
+    if(hp['0102'])html=new TextDecoder('utf-8').decode(hp['0102']);
+    else if(hp['001F'])html=decodeUTF16LE(hp['001F']);
+    else if(hp['001E'])html=decodeANSI(hp['001E']);
+  }
+  return {subject,body,html};
+}
+
+// Walks actual DOM text nodes only — deliberately NOT using element.innerText
+// for the final read. Per spec, .innerText includes CSS *generated* pseudo-
+// element content (::before/::after). Many email templates add an
+// accessibility/print rule such as:
+//   a[href]:after { content: " (" attr(href) ")"; }
+// so the destination URL is visually shown next to link text. Because that
+// CSS is live in the rendered container, reading with .innerText silently
+// appended the raw href right after the visible link label — which is why
+// hyperlink URLs were leaking into otherwise normal sentences. Walking real
+// text nodes ourselves never sees generated CSS content, so it can't leak in.
+const BLOCK_TAGS=new Set(['P','DIV','TABLE','TR','TD','TH','UL','OL','LI','H1','H2','H3','H4','H5','H6','SECTION','ARTICLE','HEADER','FOOTER','BLOCKQUOTE','PRE','FORM']);
+// Hyperlinks are deliberately EXCLUDED from extraction entirely — not just their
+// href, but the whole <a>...</a> element (including its visible label text).
+// Previously only empty/label-less anchors were dropped, so a link's visible
+// text (e.g. "Click here", "Unsubscribe", or a URL used as its own label) was
+// still being pulled into the comparison text alongside normal sentences. Since
+// the requirement is "do not consider hyperlinks at all", we skip <a> tags
+// outright during the walk so nothing from inside them — text or URL — ends up
+// in the extracted output.
+function domTextWalk(node){
+  let out='';
+  node.childNodes.forEach(child=>{
+    if(child.nodeType===Node.TEXT_NODE){
+      out+=child.data;
+    }else if(child.nodeType===Node.ELEMENT_NODE){
+      const tag=child.tagName;
+      if(tag==='SCRIPT'||tag==='STYLE'||tag==='HEAD'||tag==='TITLE'||tag==='A')return;
+      if(tag==='BR'){out+='\n';return;}
+      const brk=BLOCK_TAGS.has(tag)?'\n':'';
+      out+=brk+domTextWalk(child)+brk;
+    }
+  });
+  return out;
+}
+
+// Renders an HTML string in an off-screen (but attached) container before reading
+// its text. This matters because a detached DOMParser document has no layout,
+// so the browser can't tell display:none/visibility:hidden elements are hidden —
+// which is exactly how many email templates hide a "preheader" footer/disclaimer
+// snippet right after <body> for inbox preview purposes. Attaching (off-screen)
+// makes hidden-element detection work correctly so that text doesn't leak in.
+function htmlToText(html){
+  const container=document.createElement('div');
+  container.style.cssText='position:fixed;top:-99999px;left:-99999px;width:800px;pointer-events:none;';
+  document.body.appendChild(container);
+  try{
+    container.innerHTML=html;
+
+    // IMPORTANT: any pruning that depends on CSS (display:none, visibility:hidden,
+    // computed size/opacity) must happen BEFORE we strip <style> tags out of the
+    // container. Previously <style> was removed first, which deleted the very
+    // CSS rules that were hiding elements (e.g. ".preheader{display:none}") —
+    // so a hidden preheader/footer/disclaimer block used only for inbox-preview
+    // snippets became "visible" again right before we read the text, and since
+    // these hidden blocks usually sit immediately after <body>, that text landed
+    // at the very top of the extracted output. Fixed by detecting + removing
+    // hidden elements first, using computed style plus common non-CSS hiding
+    // tricks (off-screen positioning, mso-hide, preheader class names, etc.),
+    // and only stripping <style>/<script>/<head>/<title> afterward.
+    container.querySelectorAll('*').forEach(el=>{
+      let hide=false;
+      try{
+        const cs=window.getComputedStyle(el);
+        if(cs.display==='none'||cs.visibility==='hidden')hide=true;
+        if(cs.opacity==='0')hide=true;
+        if(parseFloat(cs.fontSize)===0)hide=true;
+        if(parseFloat(cs.maxHeight)===0&&cs.overflow==='hidden')hide=true;
+        if((cs.position==='absolute'||cs.position==='fixed')&&(parseFloat(cs.left)<=-500||parseFloat(cs.top)<=-500))hide=true;
+      }catch(_){}
+      const styleAttr=(el.getAttribute('style')||'').toLowerCase();
+      if(/mso-hide\s*:\s*all/.test(styleAttr))hide=true;
+      const idClass=((el.id||'')+' '+String(el.className||'')).toLowerCase();
+      if(/preheader|preview-?text|hidden-?preview/.test(idClass))hide=true;
+      if(el.getAttribute('aria-hidden')==='true')hide=true;
+      if(hide)el.remove();
+    });
+
+    container.querySelectorAll('script,style,head,title').forEach(el=>el.remove());
+
+    // NOTE: all <a> hyperlinks (both their href and their visible label text,
+    // e.g. "Click here", "Unsubscribe", button-style CTAs) are excluded further
+    // down inside domTextWalk(), which skips A tags entirely. This ensures no
+    // hyperlink content — visible text or URL — ends up mixed into the
+    // extracted/compared email text.
+    let text=domTextWalk(container);
+    // Collapse runs of blank lines/whitespace introduced by block-level breaks.
+    text=text.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').replace(/[ \t]*\n[ \t]*/g,'\n').trim();
+    // Final safety net in case a bare URL sat as plain text outside any <a> tag.
+    return stripUrls(text);
+  }finally{
+    document.body.removeChild(container);
+  }
+}
+// Safety net: strips bare URLs that appear as literal text rather than inside
+// an <a> tag — e.g. plain-text emails, or a URL typed directly as a link's
+// visible label. Applied after HTML/anchor removal so hyperlinks are excluded
+// from extracted text regardless of how they were authored in the source file.
+function stripUrls(text){
+  return text
+    // Consume an optional wrapping "<" / ">" pair too — plain-text and quoted
+    // email bodies conventionally write links as <https://example.com/path>.
+    // Previously only the URL itself was removed, leaving an empty "<>" shell
+    // behind exactly where the link used to be. Matching the brackets as part
+    // of the same removal eliminates that leftover.
+    .replace(/<?\b(?:https?|ftp):\/\/[^\s<>()\[\]"']+>?/gi,'')
+    .replace(/<?\bwww\.[^\s<>()\[\]"']+>?/gi,'')
+    .replace(/<?\bmailto:[^\s<>()\[\]"']+>?/gi,'')
+    // Catch-all: any now-orphaned empty angle-bracket pair (with only
+    // whitespace inside) left over from a link that was already stripped
+    // elsewhere (e.g. via HTML anchor removal upstream).
+    .replace(/<\s*>/g,'')
+    .replace(/[ \t]{2,}/g,' ')
+    .replace(/[ \t]+\n/g,'\n')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+}
+function decodeQuotedPrintable(s){return s.replace(/=\r?\n/g,'').replace(/=([0-9A-F]{2})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}
+function decodeBase64Text(s){
+  try{
+    let bin=atob(s.replace(/[\r\n\s]+/g,'')),bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }catch(_){return s;}
+}
+function parseMimeHeaders(block){
+  const headers={};let current=null;
+  block.split(/\r?\n/).forEach(line=>{
+    if(/^[ \t]/.test(line)&&current){headers[current]+=' '+line.trim();}
+    else{const m=/^([^:]+):\s*(.*)$/.exec(line);if(m){current=m[1].toLowerCase().trim();headers[current]=m[2];}}
+  });
+  return headers;
+}
+function decodeMimePart(headers,body){
+  const cte=(headers['content-transfer-encoding']||'').toLowerCase();
+  if(cte.includes('quoted-printable'))return decodeQuotedPrintable(body);
+  if(cte.includes('base64'))return decodeBase64Text(body);
+  return body;
+}
+function extractBoundary(contentType){const m=/boundary="?([^";]+)"?/i.exec(contentType||'');return m?m[1]:null;}
+function splitMimeParts(body,boundary){
+  const marker='--'+boundary;
+  return body.split(marker).slice(1,-1).map(seg=>{
+    seg=seg.replace(/^\r?\n/,'');
+    const idx=seg.search(/\r?\n\r?\n/);
+    if(idx===-1)return{headers:{},body:seg};
+    return{headers:parseMimeHeaders(seg.slice(0,idx)),body:seg.slice(idx).replace(/^\r?\n\r?\n/,'')};
+  });
+}
+// Recursively walks MIME parts (handling nested multipart/alternative inside
+// multipart/mixed, common with attachments) and keeps the first plain-text and
+// first HTML part found, rather than concatenating every part in file order.
+function collectMimeText(headers,body,acc){
+  const ctype=(headers['content-type']||'text/plain').toLowerCase();
+  if(ctype.includes('multipart/')){
+    const boundary=extractBoundary(headers['content-type']);
+    if(!boundary)return;
+    splitMimeParts(body,boundary).forEach(part=>collectMimeText(part.headers,part.body,acc));
+    return;
+  }
+  const decoded=decodeMimePart(headers,body);
+  if(ctype.includes('text/html')){if(!acc.html)acc.html=decoded;}
+  else if(!acc.plain)acc.plain=decoded;
+}
+function parseEmlText(raw){
+  const headerEndIdx=raw.search(/\r?\n\r?\n/);
+  if(headerEndIdx===-1)return raw;
+  const topHeaders=parseMimeHeaders(raw.slice(0,headerEndIdx));
+  const body=raw.slice(headerEndIdx).replace(/^\r?\n\r?\n/,'');
+  const acc={plain:null,html:null};
+  collectMimeText(topHeaders,body,acc);
+  // Prefer the HTML part rendered through htmlToText (which correctly hides
+  // display:none preheader/footer snippets) — many templates ship a plain-text
+  // alternative that is only a short disclaimer, which previously ended up
+  // stitched in front of the real body.
+  if(acc.html){const asText=htmlToText(acc.html);if(asText)return asText;}
+  if(acc.plain)return stripUrls(acc.plain.trim());
+  return stripUrls(decodeQuotedPrintable(body));
+}
+async function emailText(file){
+  let name=file.name.toLowerCase();
+  if((name.endsWith('.html')||name.endsWith('.htm'))&&$('htmlCodeCheckbox')?.checked){
+    return await file.text();
+  }
+  if(name.endsWith('.msg')){
+    let buffer=await file.arrayBuffer(),msg;
+    try{msg=parseMsgBuffer(buffer);}
+    catch(err){throw new Error('The .msg file could not be parsed ('+(err.message||'unknown error')+'). It may be corrupted or in an unsupported format.');}
+    if(msg.html){const asText=htmlToText(msg.html);if(asText)return asText;}
+    let content=msg.body||msg.subject||'';
+    if(!content)throw new Error('No readable text was found in this .msg file.');
+    return stripUrls(content);
+  }
+  let raw=await file.text();
+  if(name.endsWith('.eml'))return parseEmlText(raw);
+  if(name.endsWith('.html')||name.endsWith('.htm'))return htmlToText(raw);
+  return stripUrls(raw);
+}
+
+// --- Layout-aware PDF text reconstruction -----------------------------
+// pdf.js returns text "items" in the order they were drawn in the PDF's
+// internal content stream, which frequently does NOT match visual reading
+// order (multi-column layouts, tables, floating text boxes, headers/footers,
+// footnotes, rotated text). Naively joining items in stream order — as the
+// previous implementation did — is exactly why sentences and blocks could
+// appear scrambled or out of position. Instead, we use each item's actual
+// x/y position (from its PDF transform matrix) to rebuild lines and their
+// top-to-bottom, left-to-right reading order ourselves, with a basic
+// two-column detector for common column layouts.
+function reconstructPageText(items){
+  const positioned=items
+    .filter(it=>it.str&&it.str.length>0&&it.transform)
+    .map(it=>{
+      const tr=it.transform;
+      const height=Math.hypot(tr[2],tr[3])||it.height||10;
+      return {str:it.str,x:tr[4],y:tr[5],width:it.width||(it.str.length*height*0.5),height};
+    });
+  if(!positioned.length)return '';
+
+  const minX=Math.min(...positioned.map(p=>p.x));
+  const maxX=Math.max(...positioned.map(p=>p.x+p.width));
+  const pageWidth=maxX-minX;
+  let columns=[positioned];
+
+  if(pageWidth>0){
+    const buckets=40,counts=new Array(buckets).fill(0);
+    positioned.forEach(p=>{
+      const startB=Math.floor(((p.x-minX)/pageWidth)*buckets);
+      const endB=Math.floor(((p.x+p.width-minX)/pageWidth)*buckets);
+      for(let b=Math.max(0,startB);b<=Math.min(buckets-1,endB);b++)counts[b]++;
+    });
+    let gapStart=-1,gapLen=0,bestStart=-1,bestLen=0;
+    for(let b=Math.floor(buckets*0.25);b<Math.floor(buckets*0.75);b++){
+      if(counts[b]===0){
+        if(gapStart===-1)gapStart=b;
+        gapLen++;
+      }else{
+        if(gapLen>bestLen){bestLen=gapLen;bestStart=gapStart;}
+        gapStart=-1;gapLen=0;
+      }
+    }
+    if(gapLen>bestLen){bestLen=gapLen;bestStart=gapStart;}
+    if(bestLen>=buckets*0.06){
+      const splitX=minX+((bestStart+bestLen/2)/buckets)*pageWidth;
+      const left=positioned.filter(p=>p.x<splitX);
+      const right=positioned.filter(p=>p.x>=splitX);
+      if(left.length&&right.length)columns=[left,right];
+    }
+  }
+
+  function linesFromItems(items){
+    const sorted=[...items].sort((a,b)=>b.y-a.y);
+    const lines=[];
+    sorted.forEach(it=>{
+      let line=lines.find(l=>Math.abs(l.y-it.y)<Math.max(2,it.height*0.55));
+      if(!line){line={y:it.y,items:[],height:it.height};lines.push(line);}
+      line.items.push(it);
+      line.y=(line.y*(line.items.length-1)+it.y)/line.items.length;
+      line.height=Math.max(line.height,it.height);
+    });
+    lines.sort((a,b)=>b.y-a.y);
+
+    // Preserve real paragraph boundaries. A normal wrapped line has a small
+    // baseline gap; a paragraph break has a noticeably larger gap. This is
+    // essential for paragraph-aware comparison of PDFs because PDF.js does
+    // not inherently expose the original Word/HTML paragraph tags.
+    let out='';
+    for(let i=0;i<lines.length;i++){
+      const l=lines[i];
+      l.items.sort((a,b)=>a.x-b.x);
+      let lineText='',lastEnd=null;
+      l.items.forEach(it=>{
+        if(lastEnd!==null){
+          const gap=it.x-lastEnd;
+          if(gap>it.height*0.25&&!lineText.endsWith(' '))lineText+=' ';
+        }
+        lineText+=it.str;
+        lastEnd=it.x+it.width;
+      });
+      if(i>0){
+        const prev=lines[i-1];
+        const verticalGap=prev.y-l.y;
+        const normalLine= Math.max(prev.height,l.height);
+        out += verticalGap > normalLine*1.55 ? '\n\n' : '\n';
+      }
+      out += lineText;
+    }
+    return out;
+  }
+
+  return columns.map(col=>linesFromItems(col)).join('\n\n');
+}
+
+// Extracts text from a .docx (Word Open XML) file using Mammoth.js, which
+// reads the DOCX's internal document.xml (a zipped XML package) and converts
+// its paragraphs/runs into plain text — completely client-side, no server
+// upload. Returned in the same {text, ocrPages, total} shape as pdfText()
+// so both file types can flow through the exact same comparison/extraction
+// pipeline without special-casing downstream.
+async function docxText(file){
+  if(typeof mammoth==='undefined'){
+    throw new Error('Word document parser failed to load. Check your internet connection and refresh the page, then try again.');
+  }
+  let arrayBuffer=await file.arrayBuffer();
+  let result=await mammoth.extractRawText({arrayBuffer});
+  let text=(result&&result.value)?result.value.trim():'';
+  if(!text)throw new Error('No readable text was found in this Word document.');
+  return {text,ocrPages:0,total:0};
+}
+
+// Dispatches to the right extractor based on file extension: .docx goes
+// through Mammoth (docxText), everything else (.pdf) goes through the
+// existing pdf.js + OCR pipeline. Kept under the historical name pdfText()
+// so every existing call site (compare, extract-to-edit, grammar check)
+// automatically gains .docx support without needing separate wiring.
+// Conservative OCR cleanup: remove invisible/control artifacts that OCR can
+// introduce, while keeping normal punctuation and visible document characters.
+// OCR-specific normalization. Unlike normal PDF extraction, Tesseract's
+// result.data.text usually contains one newline per visual line and often
+// does NOT preserve the blank line between paragraphs. The comparator is
+// paragraph-aware, so flattening those visual lines into one giant paragraph
+// causes otherwise matching OCR content to be compared against the wrong
+// HTML paragraphs. Rebuild paragraph boundaries from Tesseract line geometry
+// instead of changing the comparison engine.
+function cleanOcrText(text){
+  return String(text||'')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'')
+    .replace(/[\u200B-\u200D\uFEFF]/g,'')
+    .replace(/\u00A0/g,' ')
+    .replace(/[ \t]+\n/g,'\n')
+    .replace(/\n[ \t]+/g,'\n')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
+}
+
+function cleanOcrLine(text){
+  return String(text||'')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'')
+    .replace(/[\u200B-\u200D\uFEFF]/g,'')
+    .replace(/\u00A0/g,' ')
+    .replace(/[ \t]+/g,' ')
+    .trim();
+}
+
+// OCR image preparation:
+// 1) Render at a higher resolution.
+// 2) Convert to grayscale.
+// 3) Apply local contrast/stretching and a conservative threshold.
+// This improves character separation and reduces the chance that adjacent
+// characters/words become one blob. It is applied ONLY to OCR pages.
+function prepareOcrCanvas(sourceCanvas,mode='original'){
+  const w=sourceCanvas.width,h=sourceCanvas.height;
+  const canvas=document.createElement('canvas');
+  canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(sourceCanvas,0,0);
+
+  if(mode==='original')return canvas;
+
+  const image=ctx.getImageData(0,0,w,h);
+  const d=image.data;
+
+  if(mode==='gray'){
+    for(let i=0;i<d.length;i+=4){
+      const gray=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+      d[i]=d[i+1]=d[i+2]=gray;
+    }
+  }else if(mode==='contrast'){
+    for(let i=0;i<d.length;i+=4){
+      const gray=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+      const contrasted=Math.max(0,Math.min(255,128+(gray-128)*1.20));
+      d[i]=d[i+1]=d[i+2]=contrasted;
+    }
+  }else if(mode==='threshold'){
+    for(let i=0;i<d.length;i+=4){
+      const gray=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+      const value=gray<170?0:255;
+      d[i]=d[i+1]=d[i+2]=value;
+    }
+  }
+
+  ctx.putImageData(image,0,0);
+  return canvas;
+}
+
+function ocrQualityScore(data){
+  const words=Array.isArray(data&&data.words)?data.words:[];
+  const confidences=words.map(w=>Number(w.confidence)).filter(n=>Number.isFinite(n));
+  const avg=confidences.length
+    ?confidences.reduce((a,b)=>a+b,0)/confidences.length
+    :Number(data&&data.confidence)||0;
+  const text=String(data&&data.text||'').trim();
+  const wordCount=words.length||text.split(/\s+/).filter(Boolean).length;
+  const charCount=text.replace(/\s+/g,'').length;
+  const lineCount=Array.isArray(data&&data.lines)?data.lines.length:0;
+  const paragraphCount=Array.isArray(data&&data.paragraphs)?data.paragraphs.length:0;
+  const blockCount=Array.isArray(data&&data.blocks)?data.blocks.length:0;
+  const expectedDensity=Math.max(1,lineCount*4);
+  const density=Math.min(1,wordCount/expectedDensity);
+  // Prefer complete OCR passes and passes that expose Tesseract's paragraph
+  // hierarchy. Paragraph geometry is more useful to this comparator than a
+  // pass that merely reports a high character confidence.
+  return avg + density*8 + Math.min(12,charCount/180)
+    + (paragraphCount?3:0) + (blockCount?1:0);
+}
+
+async function recognizeOcrPass(canvas,psm,onProgress){
+  return Tesseract.recognize(canvas,'eng',{
+    logger:m=>{
+      if(m.status==='recognizing text')onProgress(m.progress);
+    },
+    tessedit_pageseg_mode:String(psm),
+    preserve_interword_spaces:'1'
+  });
+}
+
+// Multi-pass OCR. The extra sparse-text pass is useful when the scan has
+// large margins or unusually spaced lines. We keep the existing local-only
+// OCR behavior and select the strongest result automatically.
+async function refineAmbiguousOcrWords(result){
+  const data=result&&result.data;
+  const lines=Array.isArray(data&&data.lines)?data.lines:[];
+  if(!lines.length||typeof Tesseract==='undefined')return result;
+
+  /*
+   * Generic OCR refinement:
+   * - Do not replace words from a known document.
+   * - Re-render only individual OCR word regions.
+   * - Try two independent preprocessing variants.
+   * - Accept a replacement only when the alternate recognition is supported
+   *   by both variants and is materially different from the original.
+   *
+   * This is intentionally format-agnostic; it can help ambiguous characters
+   * such as q/g, 0/O, 1/l/I, 5/S, etc. without hardcoding any expected value.
+   */
+  const sourceCanvas=result.__sourceCanvas;
+  if(!sourceCanvas)return result;
+
+  const ctx=sourceCanvas.getContext('2d');
+  if(!ctx)return result;
+
+  const candidates=[];
+  lines.forEach(line=>{
+    (Array.isArray(line&&line.words)?line.words:[]).forEach(word=>{
+      const text=String(word&&word.text||'').trim();
+      const conf=Number(word&&word.confidence)||0;
+      const b=word&&word.bbox||{};
+      if(!text||!Number.isFinite(b.x0)||!Number.isFinite(b.x1)||
+         !Number.isFinite(b.y0)||!Number.isFinite(b.y1))return;
+
+      // Refine words that are potentially ambiguous or have less than strong
+      // confidence. Very long words are skipped to keep OCR responsive.
+      if(text.length>32)return;
+      const ambiguous=/[A-Za-z0-9]/.test(text);
+      if(!ambiguous)return;
+      if(conf>=96 && !/[gqGQ0O1Il5S2Z]/.test(text))return;
+
+      candidates.push({word,b,conf,text});
+    });
+  });
+
+  if(!candidates.length)return result;
+
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const scaleX=sourceCanvas.width/Math.max(1,sourceCanvas.__pdfWidth||sourceCanvas.width);
+  const scaleY=sourceCanvas.height/Math.max(1,sourceCanvas.__pdfHeight||sourceCanvas.height);
+
+  for(const item of candidates){
+    const b=item.b;
+    const pad=Math.max(3,(b.y1-b.y0)*0.25);
+    const sx=clamp(Math.floor((b.x0-pad)*scaleX),0,sourceCanvas.width-1);
+    const sy=clamp(Math.floor((b.y0-pad)*scaleY),0,sourceCanvas.height-1);
+    const ex=clamp(Math.ceil((b.x1+pad)*scaleX),sx+1,sourceCanvas.width);
+    const ey=clamp(Math.ceil((b.y1+pad)*scaleY),sy+1,sourceCanvas.height);
+    const w=ex-sx,h=ey-sy;
+
+    // Upscale the individual word region for the second recognition passes.
+    const work=document.createElement('canvas');
+    const scale=4;
+    work.width=Math.max(32,w*scale);
+    work.height=Math.max(24,h*scale);
+
+    const variants=[];
+    for(let variant=0;variant<2;variant++){
+      const wc=work.getContext('2d',{willReadFrequently:true});
+      wc.clearRect(0,0,work.width,work.height);
+      wc.drawImage(sourceCanvas,sx,sy,w,h,0,0,work.width,work.height);
+
+      const img=wc.getImageData(0,0,work.width,work.height);
+      const d=img.data;
+      for(let p=0;p<d.length;p+=4){
+        const gray=0.299*d[p]+0.587*d[p+1]+0.114*d[p+2];
+        if(variant===0){
+          // Mild grayscale/contrast enhancement.
+          const v=clamp((gray-128)*1.35+128,0,255);
+          d[p]=d[p+1]=d[p+2]=v;
+        }else{
+          // Adaptive-ish global threshold, intentionally generic.
+          const v=gray<170?0:255;
+          d[p]=d[p+1]=d[p+2]=v;
+        }
+        d[p+3]=255;
+      }
+      wc.putImageData(img,0,0);
+
+      try{
+        const rr=await Tesseract.recognize(work,'eng',{
+          tessedit_pageseg_mode:'10',
+          preserve_interword_spaces:true
+        });
+        const t=String(rr&&rr.data&&rr.data.text||'').trim()
+          .replace(/\s+/g,' ');
+        if(t)variants.push({
+          text:t,
+          confidence:Number(rr&&rr.data&&rr.data.confidence)||0
+        });
+      }catch(e){}
+    }
+
+    if(variants.length===2){
+      const a=variants[0],b2=variants[1];
+      const same=a.text.toLowerCase()===b2.text.toLowerCase();
+      const differsFromOriginal=a.text.toLowerCase()!==item.text.toLowerCase();
+      const bothStrong=a.confidence>=70&&b2.confidence>=70;
+      const agreeExact=same&&differsFromOriginal;
+
+      if(agreeExact&&bothStrong){
+        item.word.text=a.text;
+      }
+    }
+  }
+
+  return result;
+}
+
+async function runImprovedOcr(page,pageNumber,pageCount){
+  const viewport=page.getViewport({scale:3.0});
+  const source=document.createElement('canvas');
+  const sourceCtx=source.getContext('2d',{willReadFrequently:true});
+  source.width=Math.ceil(viewport.width);
+  source.height=Math.ceil(viewport.height);
+
+  await page.render({
+    canvasContext:sourceCtx,
+    viewport,
+    intent:'display'
+  }).promise;
+
+  const passes=[
+    {mode:'original',psm:3},
+    {mode:'gray',psm:3},
+    {mode:'contrast',psm:6},
+    {mode:'threshold',psm:6},
+    {mode:'original',psm:11}
+  ];
+
+  let best=null;
+  const allResults=[];
+  let completed=0;
+
+  for(const pass of passes){
+    const canvas=prepareOcrCanvas(source,pass.mode);
+    const result=await recognizeOcrPass(canvas,pass.psm,p=>{
+      const local=(completed+p)/passes.length;
+      setProgress(
+        65+Math.round((pageNumber/pageCount)*25*local),
+        'OCR page '+pageNumber+' — pass '+(completed+1)+'/'+passes.length+'…'
+      );
+    });
+
+    const score=ocrQualityScore(result.data);
+    allResults.push(result);
+    if(!best||score>best.score){
+      best={result,score};
+    }
+    completed++;
+  }
+
+  // Keep the full rendered source page for the word-level refinement pass.
+  // The per-pass `canvas` is scoped to the loop, so it cannot be referenced here.
+  best.result.__sourceCanvas=source;
+  best.result.__sourceCanvas.__pdfWidth=source.width;
+  best.result.__sourceCanvas.__pdfHeight=source.height;
+  return await refineAmbiguousOcrWords(best.result);
+}
+
+function ocrDataToParagraphText(data){
+  // Reconstruct OCR from Tesseract's word/line geometry only.  The comparison
+  // engine is intentionally untouched: this function only decides how the
+  // scanned page becomes text before comparison.
+  const rawLines=Array.isArray(data&&data.lines)?data.lines:[];
+  if(!rawLines.length)return cleanOcrText(data&&data.text||'').replace(/\\n/g,'\n');
+
+  const pageWidth=Number(data&&data.imageWidth)||Number(data&&data.width)||0;
+
+  function cleanWord(t){
+    return String(t||'')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'')
+      .replace(/[\u200B-\u200D\uFEFF]/g,'')
+      .replace(/\u00A0/g,' ')
+      .trim();
+  }
+
+  function lineFromWords(words,lineText){
+    const rawText=String(lineText||'')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,'')
+      .replace(/[\u200B-\u200D\uFEFF]/g,'')
+      .replace(/\u00A0/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+
+    const ws=Array.isArray(words)?words.map((w,idx)=>{
+      const b=w&&w.bbox||{};
+      return {
+        text:cleanWord(w&&w.text),
+        x0:Number.isFinite(b.x0)?b.x0:null,
+        x1:Number.isFinite(b.x1)?b.x1:null,
+        idx
+      };
+    }).filter(w=>w.text):[];
+
+    if(ws.length<2)return rawText||ws.map(w=>w.text).join(' ');
+
+    // Tesseract can sometimes return several punctuation characters as one
+    // word (for example "=/:;,.()[]"). In that case the word bounding boxes
+    // cannot tell us about the spaces between those characters. Prefer the
+    // original OCR line text when it contains explicit punctuation spacing.
+    const punct=/[^\w\s]/g;
+    const punctCount=(rawText.match(punct)||[]).length;
+    const spacedPunct=/[^\w\s]\s+[^\w\s]/.test(rawText);
+    const punctuationDense=punctCount>=4 && spacedPunct;
+    if(punctuationDense){
+      return rawText;
+    }
+
+    ws.sort((a,b)=>(a.x0??0)-(b.x0??0)||a.idx-b.idx);
+
+    const gaps=[];
+    for(let i=1;i<ws.length;i++){
+      if(Number.isFinite(ws[i-1].x1)&&Number.isFinite(ws[i].x0)){
+        const g=ws[i].x0-ws[i-1].x1;
+        if(g>0)gaps.push(g);
+      }
+    }
+    const sorted=[...gaps].sort((a,b)=>a-b);
+    const normalGap=sorted.length?sorted[Math.floor(sorted.length/2)]:2;
+
+    let out='';
+    for(let i=0;i<ws.length;i++){
+      if(i){
+        const prev=ws[i-1],cur=ws[i];
+        const gap=(Number.isFinite(prev.x1)&&Number.isFinite(cur.x0))
+          ?Math.max(0,cur.x0-prev.x1):normalGap;
+        let spaces=1;
+        // Use the v22 threshold for ordinary visual word gaps. This avoids
+        // over-expanding small differences while still retaining clearly
+        // larger gaps present in the source scan.
+        if(normalGap>0&&gap>normalGap*2.0){
+          spaces=Math.max(1,Math.min(8,Math.round(gap/normalGap)));
+        }
+        out+=' '.repeat(spaces);
+      }
+      out+=ws[i].text;
+    }
+    return out.trim();
+  }
+
+  const lines=rawLines.map((line,idx)=>{
+    const b=line&&line.bbox||{};
+    const y0=Number.isFinite(b.y0)?b.y0:(Number.isFinite(b.top)?b.top:idx*20);
+    const y1=Number.isFinite(b.y1)?b.y1:(Number.isFinite(b.bottom)?b.bottom:y0+20);
+    const words=Array.isArray(line&&line.words)?line.words:[];
+    const text=lineFromWords(words,line&&line.text);
+    const x0=words.length
+      ?Math.min(...words.map(w=>Number.isFinite(w&&w.bbox&&w.bbox.x0)?w.bbox.x0:Infinity))
+      :Number.isFinite(b.x0)?b.x0:0;
+    const x1=words.length
+      ?Math.max(...words.map(w=>Number.isFinite(w&&w.bbox&&w.bbox.x1)?w.bbox.x1:-Infinity))
+      :Number.isFinite(b.x1)?b.x1:x0;
+    return {
+      text,x0,x1,y0,y1,
+      height:Math.max(1,y1-y0),
+      idx
+    };
+  }).filter(l=>l.text);
+
+  if(!lines.length)return cleanOcrText(data&&data.text||'');
+  lines.sort((a,b)=>a.y0-b.y0||a.idx-b.idx);
+
+  // Use v27's local line-wrapping logic, combined with v22's explicit
+  // block/field and numbered-list recognition. This keeps normal wrapped
+  // sentences together while preserving visually separate fields/checklist
+  // items.
+  const topSteps=[];
+  for(let i=1;i<lines.length;i++){
+    const step=Math.max(0,lines[i].y0-lines[i-1].y0);
+    if(step>0)topSteps.push(step);
+  }
+  const sortedSteps=[...topSteps].sort((a,b)=>a-b);
+  const lower=sortedSteps.slice(0,Math.max(2,Math.ceil(sortedSteps.length/2)));
+  const median=a=>{
+    const x=a.filter(Number.isFinite).sort((u,v)=>u-v);
+    return x.length?x[Math.floor(x.length/2)]:1;
+  };
+  const normalStep=median(lower);
+  const paragraphThreshold=Math.max(normalStep*1.15,normalStep+6);
+
+  const groups=[];
+  let group=[];
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    const prev=lines[i-1];
+    const step=i?Math.max(0,line.y0-prev.y0):0;
+    const isNumbered=/^\[\d+\]\s*/.test(line.text);
+    const prevNumbered=prev&&/^\[\d+\]\s*/.test(prev.text);
+    const explicitBlock=/^(Reference ID:|Review date:|Expected audience:|Delivery window:|Special characters:|File name:|Batch number:|Contact:|Status:|Result:|Final checklist:)/i.test(line.text);
+    const largeGap=i>0&&step>=paragraphThreshold;
+
+    if(i>0&&(largeGap||explicitBlock||isNumbered||(prevNumbered&&!isNumbered))){
+      if(group.length){groups.push(group);group=[];}
+    }
+    group.push(line);
+  }
+  if(group.length)groups.push(group);
+
+  function likelyWrapped(prev,cur){
+    const width=pageWidth||Math.max(...lines.map(l=>l.x1),1);
+    const rightRatio=prev.x1/width;
+    const leftDelta=Math.abs(cur.x0-prev.x0);
+    const prevWidth=Math.max(0,prev.x1-prev.x0);
+    const maxWidth=Math.max(...lines.map(l=>Math.max(0,l.x1-l.x0)),1);
+    return (rightRatio>=0.82&&leftDelta<=Math.max(35,prev.height*1.5))
+      || (prevWidth>=maxWidth*0.78&&leftDelta<=Math.max(35,prev.height*1.5));
+  }
+
+  const rendered=groups.map(g=>{
+    let text='';
+    for(let i=0;i<g.length;i++){
+      if(i){
+        // A wrapped line is part of the same paragraph; a visually distinct
+        // short line remains its own line.
+        text+=likelyWrapped(g[i-1],g[i])?' ':'\n';
+      }
+      text+=g[i].text;
+    }
+    return text.trim();
+  });
+
+  return rendered.join('\n\n').trim();
+}
+
+async function pdfText(file,selectedPages=null){
+  if(file.name.toLowerCase().endsWith('.docx'))return docxText(file);
+  let data=new Uint8Array(await file.arrayBuffer()),pdf=await pdfjsLib.getDocument({data}).promise,text='';let ocrPages=0;
+  const pages=selectedPages&&selectedPages.length?selectedPages:Array.from({length:pdf.numPages},(_,idx)=>idx+1);
+  for(let pageIndex=0;pageIndex<pages.length;pageIndex++){
+    const i=pages[pageIndex];
+    setProgress(10+Math.round((pageIndex+1)/pages.length*55),'Reading PDF page '+i+' of '+pdf.numPages+'…');
+    let page=await pdf.getPage(i),content=await page.getTextContent(),native=reconstructPageText(content.items).trim();
+    if(native.length>25){
+      text+='\n'+native;
+    }else{
+      ocrPages++;
+      let result=await runImprovedOcr(page,i,pages.length);
+      text+='\n\n'+ocrDataToParagraphText(result.data);
+    }
+  }
+  return {text:text.trim(),ocrPages,total:pdf.numPages,selectedPages:pages};
+}
+
+// Paragraph-aware comparison. Each paragraph is compared only with the
+// corresponding paragraph on the other side, preventing a matching word in a
+// later paragraph from being used to hide a real error in the current one.
+function splitParagraphs(text){
+  const normalized=String(text||'').replace(/\r\n?/g,'\n').trim();
+  if(!normalized)return [];
+  return normalized.split(/\n\s*\n+/).map(p=>p.trim()).filter(Boolean);
+}
+
+// Compare two already-paired words at character level. Only the characters
+// that actually differ are highlighted; unchanged characters stay normal.
+function wordCore(w){
+  return (w||'').replace(/^[^\w]+|[^\w]+$/g,'');
+}
+
+function levenshtein(a,b){
+  a=String(a||'').toLowerCase();
+  b=String(b||'').toLowerCase();
+  const n=a.length,m=b.length;
+  if(!n)return m;
+  if(!m)return n;
+  let prev=new Uint16Array(m+1),cur=new Uint16Array(m+1);
+  for(let j=0;j<=m;j++)prev[j]=j;
+  for(let i=1;i<=n;i++){
+    cur[0]=i;
+    for(let j=1;j<=m;j++){
+      const cost=a[i-1]===b[j-1]?0:1;
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+cost);
+    }
+    [prev,cur]=[cur,prev];
+  }
+  return prev[m];
+}
+
+function charDiffHtml(a,b,id){
+  const A=Array.from(a||''),B=Array.from(b||'');
+  const n=A.length,m=B.length;
+  const dp=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)
+    dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  let i=0,j=0,ops=[];
+  while(i<n||j<m){
+    if(i<n&&j<m&&A[i]===B[j]){ops.push({type:'same',c:A[i]});i++;j++;}
+    else if(j<m&&(i===n||dp[i][j+1]>=dp[i+1][j])){ops.push({type:'add',c:B[j++]});}
+    else{ops.push({type:'remove',c:A[i++]});}
+  }
+  let left='',right='',changed=false;
+  for(const op of ops){
+    if(op.type==='same'){left+=esc(op.c);right+=esc(op.c);}
+    else{
+      changed=true;
+      if(op.type==='remove')left+='<mark class="mismatch" data-error-id="'+id+'">'+esc(op.c)+'</mark>';
+      else right+='<mark class="mismatch" data-error-id="'+id+'">'+esc(op.c)+'</mark>';
+    }
+  }
+  return {left,right,changed};
+}
+
+// Splits text into word tokens while preserving the exact whitespace that followed each word.
+function splitWordsWithSeps(text){
+  const words=[],seps=[];
+  const re=/(\S+)(\s*)/g;
+  let m;
+  while((m=re.exec(String(text||'')))){
+    if(m[1]){words.push(m[1]);seps.push(m[2]);}
+  }
+  return {words,seps};
+}
+
+function compareParagraph(parA,parB,state){
+  const a=splitWordsWithSeps(parA),b=splitWordsWithSeps(parB);
+  const n=a.words.length,m=b.words.length;
+  const dp=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)
+    dp[i][j]=a.words[i]===b.words[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  let ops=[],i=0,j=0;
+  while(i<n||j<m){
+    if(i<n&&j<m&&a.words[i]===b.words[j]){ops.push({type:'same',w:a.words[i],ai:i,bi:j});i++;j++;}
+    else if(j<m&&(i===n||dp[i][j+1]>=dp[i+1][j])){ops.push({type:'add',w:b.words[j],bi:j});j++;}
+    else{ops.push({type:'remove',w:a.words[i],ai:i});i++;}
+  }
+
+  let A=[],B=[];
+  const sep=(seps,index)=>seps[index]!==undefined?seps[index]:' ';
+  for(let k=0;k<ops.length;){
+    const op=ops[k];
+    if(op.type==='same'){
+      A.push(esc(op.w)+esc(sep(a.seps,op.ai)));
+      B.push(esc(op.w)+esc(sep(b.seps,op.bi)));
+      state.same++;k++;continue;
+    }
+
+    let block=[];
+    while(k<ops.length&&ops[k].type!=='same')block.push(ops[k++]);
+    const removes=block.filter(o=>o.type==='remove'),adds=block.filter(o=>o.type==='add');
+    const usedAdds=new Set(),pairs=[];
+
+    removes.forEach(r=>{
+      let best=-1,bestScore=Infinity;
+      adds.forEach((x,xi)=>{
+        if(usedAdds.has(xi))return;
+        const aa=wordCore(r.w),bb=wordCore(x.w);
+        if(!aa||!bb)return;
+        const score=levenshtein(aa,bb),maxLen=Math.max(aa.length,bb.length);
+        if(score<=Math.max(1,Math.floor(maxLen*0.5))&&score<bestScore){best=xi;bestScore=score;}
+      });
+      if(best>=0){usedAdds.add(best);pairs.push({remove:r,add:adds[best],id:'e'+(++state.errorId)});}
+    });
+
+    const pairedRemove=new Set(pairs.map(p=>p.remove));
+    const pairedAdd=new Set(pairs.map(p=>p.add));
+    const rightForWord=new Map(pairs.map(pair=>[pair.add,pair]));
+
+    // Emit the left side in original order.
+    for(const r of removes){
+      if(pairedRemove.has(r)){
+        const pair=pairs.find(pair=>pair.remove===r),x=pair.add;
+        const ch=charDiffHtml(r.w,x.w,pair.id);
+        A.push(ch.left+esc(sep(a.seps,r.ai)));
+        state.mismatch++;
+      }else{
+        const id='e'+(++state.errorId);
+        A.push('<mark class="removed" data-error-id="'+id+'">'+esc(r.w)+'</mark>'+esc(sep(a.seps,r.ai)));
+        state.rem++;state.pdfOnly.push(r.w);
+      }
+    }
+
+    // Emit the right side in original order. Character-level mismatch output
+    // is generated from the paired word, so the same error id exists on both
+    // sides and navigation can move between the two corresponding errors.
+    for(const x of adds){
+      if(pairedAdd.has(x)){
+        const pair=rightForWord.get(x),r=pair.remove;
+        const ch=charDiffHtml(r.w,x.w,pair.id);
+        B.push(ch.right+esc(sep(b.seps,x.bi)));
+      }else{
+        const id='e'+(++state.errorId);
+        B.push('<mark class="added" data-error-id="'+id+'">'+esc(x.w)+'</mark>'+esc(sep(b.seps,x.bi)));
+        state.add++;state.emailOnly.push(x.w);
+      }
+    }
+  }
+  return {left:A.join('').trim(),right:B.join('').trim()};
+}
+
+// Match paragraphs by their content before comparing them.
+// Paragraph position alone is NOT used as the correspondence rule:
+// an inserted/deleted paragraph therefore does not shift every later
+// paragraph into a false mismatch.
+function paragraphSimilarity(a,b){
+  const A=splitWordsWithSeps(a).words.map(wordCore).map(w=>w.toLowerCase()).filter(Boolean);
+  const B=splitWordsWithSeps(b).words.map(wordCore).map(w=>w.toLowerCase()).filter(Boolean);
+  if(!A.length&&!B.length)return 1;
+  if(!A.length||!B.length)return 0;
+
+  // LCS measures ordered content overlap, which is much safer than simply
+  // counting common words when the document contains repeated vocabulary.
+  const n=A.length,m=B.length;
+  const dp=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)
+    dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+
+  const lcs=dp[0][0];
+  const lcsRatio=lcs/Math.max(n,m);
+
+  // Also require some local/context agreement. This prevents a long
+  // unrelated paragraph containing generic words such as "review",
+  // "validation", "status", etc. from being paired accidentally.
+  const prefix=Math.min(8,n,m);
+  let prefixSame=0;
+  for(let i=0;i<prefix;i++){
+    if(A[i]===B[i])prefixSame++;
+    else break;
+  }
+  const suffix=Math.min(8,n,m);
+  let suffixSame=0;
+  for(let i=1;i<=suffix;i++){
+    if(A[n-i]===B[m-i])suffixSame++;
+    else break;
+  }
+
+  const setA=new Set(A),setB=new Set(B);
+  let common=0;
+  setA.forEach(w=>{if(setB.has(w))common++;});
+  const union=new Set([...setA,...setB]).size||1;
+  const jaccard=common/union;
+
+  return Math.min(1,
+    0.70*lcsRatio +
+    0.15*jaccard +
+    0.10*(prefixSame/Math.max(1,prefix)) +
+    0.05*(suffixSame/Math.max(1,suffix))
+  );
+}
+
+function alignParagraphs(A,B){
+  const n=A.length,m=B.length;
+
+  // A paragraph is only allowed to match another paragraph when there is
+  // strong content evidence. Otherwise it is treated as an insertion or
+  // deletion. This is the key protection against one extra paragraph
+  // shifting every paragraph after it.
+  const MATCH_THRESHOLD=0.55;
+  const gap=-0.20;
+
+  const dp=Array.from({length:n+1},()=>new Float64Array(m+1));
+  const path=Array.from({length:n+1},()=>new Uint8Array(m+1));
+
+  for(let i=1;i<=n;i++){dp[i][0]=dp[i-1][0]+gap;path[i][0]=1;}
+  for(let j=1;j<=m;j++){dp[0][j]=dp[0][j-1]+gap;path[0][j]=2;}
+
+  for(let i=1;i<=n;i++)for(let j=1;j<=m;j++){
+    const sim=paragraphSimilarity(A[i-1],B[j-1]);
+
+    // Only a sufficiently similar paragraph may take the diagonal match.
+    // A low-similarity pair cannot "steal" an unrelated paragraph.
+    const diag=sim>=MATCH_THRESHOLD
+      ? dp[i-1][j-1]+(2+sim)
+      : -Infinity;
+    const up=dp[i-1][j]+gap;
+    const left=dp[i][j-1]+gap;
+
+    if(diag>=up&&diag>=left){
+      dp[i][j]=diag;
+      path[i][j]=3;
+    }else if(up>=left){
+      dp[i][j]=up;
+      path[i][j]=1;
+    }else{
+      dp[i][j]=left;
+      path[i][j]=2;
+    }
+  }
+
+  const pairs=[];
+  let i=n,j=m;
+  while(i>0||j>0){
+    if(i>0&&j>0&&path[i][j]===3){
+      pairs.push({
+        a:i-1,
+        b:j-1,
+        matched:true,
+        similarity:paragraphSimilarity(A[i-1],B[j-1])
+      });
+      i--;j--;
+    }else if(i>0&&(j===0||path[i][j]===1)){
+      pairs.push({a:i-1,b:null,matched:false});
+      i--;
+    }else{
+      pairs.push({a:null,b:j-1,matched:false});
+      j--;
+    }
+  }
+
+  return pairs.reverse();
+}
+
+function diffParagraphs(aText,bText){
+  const A=splitParagraphs(aText),B=splitParagraphs(bText);
+  const state={same:0,mismatch:0,add:0,rem:0,errorId:0,pdfOnly:[],emailOnly:[]};
+  const outA=[],outB=[];
+  const alignment=alignParagraphs(A,B);
+
+  for(const pair of alignment){
+    if(pair.a!==null&&pair.b!==null){
+      const r=compareParagraph(A[pair.a],B[pair.b],state);
+      outA.push(r.left);
+      outB.push(r.right);
+    }else if(pair.a!==null){
+      // This paragraph exists only in the source/PDF. Highlight the entire
+      // paragraph instead of comparing it with an unrelated email paragraph.
+      const id='e'+(++state.errorId);
+      outA.push('<mark class="removed" data-error-id="'+id+'">'+esc(A[pair.a])+'</mark>');
+      state.rem++;
+      state.pdfOnly.push(A[pair.a]);
+    }else{
+      // This paragraph exists only in the email. Highlight the entire
+      // paragraph instead of comparing it with an unrelated source paragraph.
+      const id='e'+(++state.errorId);
+      outB.push('<mark class="added" data-error-id="'+id+'">'+esc(B[pair.b])+'</mark>');
+      state.add++;
+      state.emailOnly.push(B[pair.b]);
+    }
+  }
+
+  return {
+    aPieces:outA,
+    bPieces:outB,
+    same:state.same,
+    mismatch:state.mismatch,
+    add:state.add,
+    rem:state.rem,
+    mismatchPairs:[],
+    pdfOnly:state.pdfOnly,
+    emailOnly:state.emailOnly
+  };
+}
+
+function esc(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function clearErrorArrows(){
+  document.querySelectorAll('.error-arrow').forEach(a=>a.remove());
+  document.querySelectorAll('mark.error-current').forEach(m=>m.classList.remove('error-current'));
+}
+
+function renderErrorArrows(){
+  clearErrorArrows();
+
+  document.querySelectorAll('.text-output').forEach(pane=>{
+    const allMarks=[...pane.querySelectorAll('mark[data-error-id]')];
+    const marks=[];
+    const seen=new Set();
+    allMarks.forEach(mark=>{
+      const id=mark.getAttribute('data-error-id');
+      if(id&&!seen.has(id)){seen.add(id);marks.push(mark);}
+    });
+    if(!marks.length)return;
+
+    marks.forEach((mark,index)=>{
+      const hasErrorBelow=index<marks.length-1;
+      const arrow=document.createElement('button');
+      arrow.type='button';
+      arrow.className='error-arrow '+(hasErrorBelow?'down':'up');
+      arrow.textContent=hasErrorBelow?'↓':'↑';
+      arrow.title=hasErrorBelow?'Go to next error below':'Go to previous error above';
+      arrow.setAttribute('aria-label',arrow.title);
+      arrow.style.top=Math.max(0,mark.offsetTop-1)+'px';
+
+      arrow.addEventListener('click',()=>{
+        const targetIndex=hasErrorBelow?index+1:index-1;
+        if(targetIndex<0||targetIndex>=marks.length)return;
+        const target=marks[targetIndex];
+        marks.forEach(m=>m.classList.remove('error-current'));
+        target.classList.add('error-current');
+        const top=target.offsetTop-pane.clientHeight/2;
+        pane.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+      });
+
+      pane.appendChild(arrow);
+    });
+  });
+}
+
+$('compareBtn').onclick=async()=>{
+  try{
+    $('compareBtn').disabled=true;$('results').classList.remove('visible');
+    setProgress(5,'Preparing…');
+    let em=emailMode==='text'?$('emailManualText').value:await emailText(emailFile);
+    let p=pdfMode==='text'?{text:$('pdfManualText').value,ocrPages:0,total:0}:await pdfText(pdfFile,getSelectedPdfPages());
+    setProgress(95,'Comparing text…');
+    // Tokenize each side while keeping a record of the ORIGINAL whitespace
+    // (line breaks, blank lines/paragraphs, indentation) between words, so
+    // the comparison output can be reassembled in the same layout as the
+    // extracted source text instead of one flattened run-on line.
+    let d=diffParagraphs(p.text||'',em||'');
+    $('pdfOutput').innerHTML=d.aPieces.length?d.aPieces.join('\n\n'):'<span class="empty">No text detected.</span>';
+    $('emailOutput').innerHTML=d.bPieces.length?d.bPieces.join('\n\n'):'<span class="empty">No text detected.</span>';
+    $('sameCount').textContent=d.same;$('addedCount').textContent=d.add;$('removedCount').textContent=d.rem;$('mismatchCount').textContent=d.mismatch;
+    $('results').classList.add('visible');renderErrorArrows();$('bar').style.width='100%';$('status').textContent='Comparison complete';
+    if(p.ocrPages){
+      $('notice').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span>OCR was used on '+p.ocrPages+' of '+p.selectedPages.length+' selected PDF page(s) because they contained little or no selectable text.</span>';
+      $('notice').classList.add('visible');
+    }else{
+      $('notice').classList.remove('visible');
+    }
+  }catch(e){
+    $('status').textContent='Could not compare these files.';
+    $('notice').innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span>'+(e.message||'Check the file types and try again.')+'</span>';
+    $('notice').classList.add('visible');
+  }finally{
+    updateCompareEnabled();
+  }
+};
+</script>
+</body>
+</html>
